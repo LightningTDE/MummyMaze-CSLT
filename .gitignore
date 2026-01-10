@@ -33,8 +33,3 @@ env/
 # OS
 .DS_Store
 Thumbs.db
-
-# User data
-dist/userdata/
-dist/saves/
-dist/leaderboard/
