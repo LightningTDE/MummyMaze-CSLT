@@ -4,6 +4,10 @@ import os
 from api.io.Lightning.manager.TextDesigner import CustomFont
 from api.io.Lightning.utils.ConfigFile import UI_PATH, fps
 from api.io.Lightning.gui import GameUI  # --- FIX: Import GameUI to handle side buttons ---
+from api.io.Lightning.manager.SoundReader import music_manager, sfx_manager  # --- Import music and sfx managers ---
+
+# Win screen music timing configuration
+WIN_MUSIC_DELAY_MS = 3000  # Delay before starting pause music (milliseconds)
 
 
 def format_time_text(ms, include_hours=False):
@@ -24,6 +28,15 @@ def win_screen(screen, clock, level_time_ms=0, total_time_ms=0):
     """
     # Track options menu state
     _show_options = False
+    
+    # --- MUSIC SEQUENCE: Pause classic music, play win music + SFX ---
+    music_manager.pause_classic_music()
+    music_manager.play_win_music()
+    sfx_manager.play('finished')  # Play simultaneously with win music
+    
+    # Start pause music after a delay (let win music play first)
+    pause_music_started = False
+    pause_music_start_time = pygame.time.get_ticks() + WIN_MUSIC_DELAY_MS
     
     # 1. Load Background
     background = pygame.image.load(os.path.join(UI_PATH, 'nextlevel.jpg')).convert()
@@ -64,10 +77,21 @@ def win_screen(screen, clock, level_time_ms=0, total_time_ms=0):
     running = True
     while running:
         mouse_pos = pygame.mouse.get_pos()
+        
+        # Start pause music after delay
+        if not pause_music_started and pygame.time.get_ticks() >= pause_music_start_time:
+            # CRITICAL: Stop any playing music first, then play pause music
+            pygame.mixer.music.stop()
+            music_manager.play_pause_music()
+            pause_music_started = True
+            print("DEBUG: Started pause music (48-53.mp3)")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
+            
+            # Handle music events
+            music_manager.handle_event(event)
 
             # --- FIX: Handle Side Buttons with Options Menu Support ---
             action = GameUI.handle_game_input(event, mouse_pos)
@@ -82,7 +106,6 @@ def win_screen(screen, clock, level_time_ms=0, total_time_ms=0):
 
             # Handle options menu interactions
             if _show_options and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                from api.io.Lightning.manager.SoundReader import music_manager, sfx_manager
                 cx, cy = screen.get_width() // 2, screen.get_height() // 2
                 bx, by = cx - 150, cy - 100
                 if bx < mouse_pos[0] < bx + 300:
@@ -93,6 +116,10 @@ def win_screen(screen, clock, level_time_ms=0, total_time_ms=0):
 
             if not _show_options and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if btn_rect.collidepoint(mouse_pos):
+                    # Player clicked "NEXT LEVEL"
+                    print("DEBUG: Resuming classic music")
+                    pygame.mixer.music.stop()  # Stop pause music
+                    music_manager.resume_classic_music()  # Resume classic music
                     return "next_level"
 
         # --- Drawing ---

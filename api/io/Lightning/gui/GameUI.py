@@ -276,9 +276,25 @@ def next_level():
 
 def start_new_game():
     """Start a new game from the beginning (Level 1, Pyramid 1)."""
-    global _level_system
+    global _level_system, _storage_manager, _user_profile
+    
     if _level_system:
-        _level_system.reset_progress()
+        _level_system.reset_progress()  # Resets to Pyramid 1, Level 1
+    
+    # CRITICAL: Update profile immediately when starting new game
+    # Using explicit values (1, 1) to ensure new game always starts at beginning
+    if _storage_manager and _storage_manager.current_profile:
+        _storage_manager.update_progression(1, 1)  # Set to Pyramid 1, Level 1
+        _user_profile = _storage_manager.current_profile
+        print("✅ Started new game: Pyramid 1, Level 1 - Profile updated")
+    elif _user_profile:
+        # Fallback to ProfileManager
+        _user_profile['pyramid'] = 1
+        _user_profile['level'] = 1
+        _user_profile['total_time'] = 0  # Reset total time for new game
+        ProfileManager.save_profile(_user_profile)
+        print("✅ Started new game: Pyramid 1, Level 1")
+    
     _generate_current_level_maze()
 
 """
@@ -340,6 +356,13 @@ def save_game():
     if not _storage_manager or not _storage_manager.current_user:
         return False
     
+    # Check if player is at exit - don't save, they should advance to next level
+    if _maze_loader and _player:
+        exit_pos = _maze_loader.parsed.get('exit', {})
+        if exit_pos and _player.x == exit_pos.get('x') and _player.y == exit_pos.get('y'):
+            print("⚠️ Cannot save at exit position - please advance to next level or undo")
+            return False
+    
     # If player is dead/dying, undo to last valid move
     if _turn_state == TurnState.PLAYER_DYING or (
         _player and _player.state in [
@@ -355,18 +378,22 @@ def save_game():
     if not _maze_loader or not _player:
         return False
     
-    # Get current pyramid and level from profile (source of truth)
-    profile = _storage_manager.current_profile
-    if not profile:
-        return False
-    
-    pyramid = profile.get('pyramid', 1)
-    level = profile.get('level', 1)
-    
-    # Sync level_system with profile to ensure consistency
+    # CRITICAL: Get pyramid and level from LEVEL SYSTEM (source of truth for current game)
     if _level_system:
-        _level_system.set_pyramid(pyramid)
-        _level_system.set_level(level)
+        pyramid = _level_system.get_current_pyramid()
+        level = _level_system.get_current_level()
+        print(f"DEBUG: Saving game at Pyramid {pyramid}, Level {level} (from level_system)")
+    else:
+        # Fallback to profile (but this shouldn't happen)
+        profile = _storage_manager.current_profile
+        if not profile:
+            return False
+        pyramid = profile.get('pyramid', 1)
+        level = profile.get('level', 1)
+        print(f"DEBUG: Saving game at Pyramid {pyramid}, Level {level} (from profile - fallback)")
+    
+    # Update profile progression BEFORE saving
+    _storage_manager.update_progression(pyramid, level)
     
     # Get level and total time
     level_time = get_level_time()
@@ -423,12 +450,17 @@ def load_game():
     if not save_data:
         return False
     
-    # Load pyramid and level
+    # Load pyramid and level from save data
+    pyramid = save_data.get("pyramid", 1)
+    level = save_data.get("level", 1)
+    
+    print(f"DEBUG: Loading game - Save data has Pyramid {pyramid}, Level {level}")
+    
+    # Sync level_system with loaded data
     if _level_system:
-        pyramid = save_data.get("pyramid", 1)
-        level = save_data.get("level", 1)
         _level_system.set_pyramid(pyramid)
         _level_system.set_level(level)
+        print(f"DEBUG: level_system synced to Pyramid {pyramid}, Level {level}")
     
     # Load original maze
     original_maze = save_data.get("original_maze")
@@ -506,7 +538,7 @@ def load_game():
     # Set correct game state
     _turn_state = TurnState.PLAYER_INPUT
     
-    print(f"✅ Game loaded: Pyramid {save_data.get('pyramid', 1)} - Level {save_data.get('level', 1)}")
+    print(f"✅ Game loaded: Pyramid {pyramid} - Level {level}")
     return True
 
 def has_save_game():
@@ -756,47 +788,113 @@ def draw_screen(screen, hovered=None, clicked=None, draw_mumlogo=True, mumlogo_y
  * Đang cập nhật - Tạm thời
  */
 """
+_options_button_rects = {}
 def _draw_options_menu(screen):
-    global _show_ankh
-    
-    overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 150))
-    screen.blit(overlay, (0, 0))
+    """Draw the options menu overlay with clickable buttons"""
+    global _show_options, _options_button_rects, _show_ankh  # ADD _show_ankh here!
 
-    cx, cy = screen.get_width() // 2, screen.get_height() // 2
-    rect = pygame.Rect(cx - 150, cy - 100, 300, 200)
+    # Panel dimensions
+    panel_width = 400
+    panel_height = 250
+    cx = 400  # Center of game area (160 + 240)
+    cy = 240  # Center of screen height (480 / 2)
 
-    pygame.draw.rect(screen, (40, 30, 10), rect)
-    pygame.draw.rect(screen, (150, 100, 50), rect, 3)
+    # Create panel rect
+    rect = pygame.Rect(cx - panel_width//2, cy - panel_height//2, panel_width, panel_height)
 
-    font = pygame.font.SysFont('arial', 24, bold=True)
-    small = pygame.font.SysFont('arial', 18)
+    # Draw panel background
+    pygame.draw.rect(screen, (40, 30, 20), rect)
+    pygame.draw.rect(screen, (200, 150, 50), rect, 3)
 
-    t = font.render("OPTIONS", True, (255, 200, 50))
-    screen.blit(t, (cx - t.get_width() // 2, rect.y + 15))
+    # Title
+    title_font = pygame. font.SysFont("arial", 32, bold=True)
+    title_surf = title_font.render("OPTIONS", True, (255, 215, 0))
+    screen.blit(title_surf, (cx - title_surf.get_width()//2, rect.y + 20))
 
-    m_vol = int(music_manager.get_volume() * 100)
-    s_vol = int(sfx_manager.get_volume() * 100)
+    # Option font
+    option_font = pygame. font.SysFont("arial", 20)
 
-    screen.blit(small.render(f"Music: {m_vol}%  [- / +]", True, (255, 255, 255)), (rect.x + 40, rect.y + 60))
-    screen.blit(small.render(f"SFX: {s_vol}%  [- / +]", True, (255, 255, 255)), (rect.x + 40, rect.y + 100))
-    
-    # Ankh toggle
-    ankh_text = small.render(f"Ankh: [ON] / [OFF]", True, (255, 255, 255))
-    screen.blit(ankh_text, (rect.x + 40, rect.y + 140))
-    
-    # Highlight current selection
-    if _show_ankh:
-        # Draw yellow box around ON
-        on_rect = pygame.Rect(rect.x + 90, rect.y + 138, 30, 20)
-        pygame.draw.rect(screen, (255, 255, 0), on_rect, 2)
-    else:
-        # Draw yellow box around OFF
-        off_rect = pygame.Rect(rect.x + 140, rect.y + 138, 35, 20)
-        pygame.draw.rect(screen, (255, 255, 0), off_rect, 2)
+    # Get current settings
+    m_vol = int(music_manager.volume * 100)
+    s_vol = int(sfx_manager.volume * 100)
 
-    c = small.render("Click OPTIONS to Close", True, (150, 150, 150))
-    screen.blit(c, (cx - c.get_width() // 2, rect.bottom - 30))
+    # Clear button rects
+    _options_button_rects = {}
+
+    # --- Music Volume ---
+    music_y = rect.y + 80
+    music_text = option_font.render(f"Music: {m_vol}%", True, (255, 255, 255))
+    text_x = rect.x + 50
+    screen.blit(music_text, (text_x, music_y))
+
+    # Position buttons after text
+    button_x = text_x + music_text.get_width() + 20
+
+    # [-] button for music
+    minus_music_surf = option_font.render("[-]", True, (255, 255, 255))
+    minus_music_rect = pygame.Rect(button_x, music_y, minus_music_surf.get_width(), minus_music_surf.get_height())
+    screen.blit(minus_music_surf, (button_x, music_y))
+    _options_button_rects['minus_music'] = minus_music_rect
+
+    # [+] button for music
+    plus_music_x = button_x + minus_music_surf.get_width() + 10
+    plus_music_surf = option_font.render("[+]", True, (255, 255, 255))
+    plus_music_rect = pygame.Rect(plus_music_x, music_y, plus_music_surf.get_width(), plus_music_surf.get_height())
+    screen.blit(plus_music_surf, (plus_music_x, music_y))
+    _options_button_rects['plus_music'] = plus_music_rect
+
+    # --- SFX Volume ---
+    sfx_y = rect.y + 120
+    sfx_text = option_font.render(f"SFX:  {s_vol}%", True, (255, 255, 255))
+    screen.blit(sfx_text, (text_x, sfx_y))
+
+    # Position buttons after text
+    sfx_button_x = text_x + sfx_text.get_width() + 20
+
+    # [-] button for SFX
+    minus_sfx_surf = option_font.render("[-]", True, (255, 255, 255))
+    minus_sfx_rect = pygame.Rect(sfx_button_x, sfx_y, minus_sfx_surf.get_width(), minus_sfx_surf.get_height())
+    screen.blit(minus_sfx_surf, (sfx_button_x, sfx_y))
+    _options_button_rects['minus_sfx'] = minus_sfx_rect
+
+    # [+] button for SFX
+    plus_sfx_x = sfx_button_x + minus_sfx_surf.get_width() + 10
+    plus_sfx_surf = option_font.render("[+]", True, (255, 255, 255))
+    plus_sfx_rect = pygame.Rect(plus_sfx_x, sfx_y, plus_sfx_surf.get_width(), plus_sfx_surf.get_height())
+    screen.blit(plus_sfx_surf, (plus_sfx_x, sfx_y))
+    _options_button_rects['plus_sfx'] = plus_sfx_rect
+
+    # --- Show Ankh Toggle ---
+    ankh_y = rect.y + 160
+    ankh_label = option_font.render("Ankh:", True, (255, 255, 255))
+    screen.blit(ankh_label, (text_x, ankh_y))
+
+    # Position buttons after label
+    ankh_button_x = text_x + ankh_label.get_width() + 20
+
+    # [ON] button - Use global _show_ankh directly
+    on_color = (255, 215, 0) if _show_ankh else (150, 150, 150)
+    on_surf = option_font.render("[ON]", True, on_color)
+    on_rect = pygame.Rect(ankh_button_x, ankh_y, on_surf.get_width(), on_surf.get_height())
+    screen.blit(on_surf, (ankh_button_x, ankh_y))
+    _options_button_rects['on_ankh'] = on_rect
+
+    # / separator
+    sep_x = ankh_button_x + on_surf.get_width() + 5
+    sep_surf = option_font.render("/", True, (255, 255, 255))
+    screen.blit(sep_surf, (sep_x, ankh_y))
+
+    # [OFF] button - Use global _show_ankh directly
+    off_x = sep_x + sep_surf.get_width() + 5
+    off_color = (255, 215, 0) if not _show_ankh else (150, 150, 150)
+    off_surf = option_font.render("[OFF]", True, off_color)
+    off_rect = pygame.Rect(off_x, ankh_y, off_surf.get_width(), off_surf.get_height())
+    screen.blit(off_surf, (off_x, ankh_y))
+    _options_button_rects['off_ankh'] = off_rect
+
+    # --- Close instruction ---
+    close_text = option_font.render("Click OPTIONS to Close", True, (180, 180, 180))
+    screen.blit(close_text, (cx - close_text.get_width() // 2, rect.y + 210))
 
 """
 /**
@@ -834,40 +932,113 @@ def handle_game_input(event, mouse_pos):
                 return 'quit'
 
         if _show_options:
-            cx, cy = 640 // 2, 480 // 2
-            bx, by = cx - 150, cy - 100
-            if bx < mouse_pos[0] < bx + 300:
-                if by + 50 < mouse_pos[1] < by + 80:
-                    music_manager.set_volume(music_manager.get_volume() + (0.1 if mouse_pos[0] > cx else -0.1))
-                    # Save music volume to profile
-                    if _user_profile:
-                        if 'options' not in _user_profile:
-                            _user_profile['options'] = {}
-                        _user_profile['options']['music_volume'] = music_manager.get_volume()
-                        ProfileManager.save_profile(_user_profile)
-                elif by + 90 < mouse_pos[1] < by + 120:
-                    sfx_manager.set_volume(sfx_manager.get_volume() + (0.1 if mouse_pos[0] > cx else -0.1))
-                    # Save SFX volume to profile
-                    if _user_profile:
-                        if 'options' not in _user_profile:
-                            _user_profile['options'] = {}
-                        _user_profile['options']['sfx_volume'] = sfx_manager.get_volume()
-                        ProfileManager.save_profile(_user_profile)
-                # Ankh toggle
-                elif by + 130 < mouse_pos[1] < by + 160:
-                    # Click on left side (ON area)
-                    if mouse_pos[0] < cx:
-                        _show_ankh = True
-                    # Click on right side (OFF area)
-                    else:
-                        _show_ankh = False
-                    
-                    # Save to profile
-                    if _user_profile:
-                        if 'options' not in _user_profile:
-                            _user_profile['options'] = {}
-                        _user_profile['options']['show_ankh'] = _show_ankh
-                        ProfileManager.save_profile(_user_profile)
+            # Use 640x480 screen dimensions
+            cx = 400  # Center of game area (matching _draw_options_menu)
+            cy = 240
+            panel_width = 400
+            panel_height = 250
+            rect_x = cx - panel_width // 2
+            rect_y = cy - panel_height // 2
+
+            # Get current settings
+            m_vol = int(music_manager.get_volume() * 100)
+            s_vol = int(sfx_manager.get_volume() * 100)
+
+            # Calculate text widths to match button positions
+            option_font = pygame.font.SysFont("arial", 20)
+
+            text_x = rect_x + 50
+
+            # Music line
+            music_y = rect_y + 80
+            music_text = option_font.render(f"Music: {m_vol}%", True, (255, 255, 255))
+            button_x = text_x + music_text.get_width() + 20
+
+            minus_music_surf = option_font.render("[-]", True, (255, 255, 255))
+            minus_music_rect = pygame.Rect(button_x, music_y, minus_music_surf.get_width(),
+                                           minus_music_surf.get_height())
+
+            plus_music_x = button_x + minus_music_surf.get_width() + 10
+            plus_music_surf = option_font.render("[+]", True, (255, 255, 255))
+            plus_music_rect = pygame.Rect(plus_music_x, music_y, plus_music_surf.get_width(),
+                                          plus_music_surf.get_height())
+
+            # SFX line
+            sfx_y = rect_y + 120
+            sfx_text = option_font.render(f"SFX:   {s_vol}%", True, (255, 255, 255))
+            sfx_button_x = text_x + sfx_text.get_width() + 20
+
+            minus_sfx_surf = option_font.render("[-]", True, (255, 255, 255))
+            minus_sfx_rect = pygame.Rect(sfx_button_x, sfx_y, minus_sfx_surf.get_width(), minus_sfx_surf.get_height())
+
+            plus_sfx_x = sfx_button_x + minus_sfx_surf.get_width() + 10
+            plus_sfx_surf = option_font.render("[+]", True, (255, 255, 255))
+            plus_sfx_rect = pygame.Rect(plus_sfx_x, sfx_y, plus_sfx_surf.get_width(), plus_sfx_surf.get_height())
+
+            # Ankh line
+            ankh_y = rect_y + 160
+            ankh_label = option_font.render("Ankh:", True, (255, 255, 255))
+            ankh_button_x = text_x + ankh_label.get_width() + 20
+
+            on_surf = option_font.render("[ON]", True, (255, 215, 0))
+            on_rect = pygame.Rect(ankh_button_x, ankh_y, on_surf.get_width(), on_surf.get_height())
+
+            sep_x = ankh_button_x + on_surf.get_width() + 5
+            sep_surf = option_font.render("/", True, (255, 255, 255))
+
+            off_x = sep_x + sep_surf.get_width() + 5
+            off_surf = option_font.render("[OFF]", True, (255, 215, 0))
+            off_rect = pygame.Rect(off_x, ankh_y, off_surf.get_width(), off_surf.get_height())
+
+            # Handle music clicks
+            if minus_music_rect.collidepoint(mouse_pos):
+                new_vol = max(0, music_manager.get_volume() - 0.1)
+                music_manager.set_volume(new_vol)
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['music_volume'] = new_vol
+                    ProfileManager.save_profile(_user_profile)
+            elif plus_music_rect.collidepoint(mouse_pos):
+                new_vol = min(1.0, music_manager.get_volume() + 0.1)
+                music_manager.set_volume(new_vol)
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['music_volume'] = new_vol
+                    ProfileManager.save_profile(_user_profile)
+            # Handle SFX clicks
+            elif minus_sfx_rect.collidepoint(mouse_pos):
+                new_vol = max(0, sfx_manager.get_volume() - 0.1)
+                sfx_manager.set_volume(new_vol)
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['sfx_volume'] = new_vol
+                    ProfileManager.save_profile(_user_profile)
+            elif plus_sfx_rect.collidepoint(mouse_pos):
+                new_vol = min(1.0, sfx_manager.get_volume() + 0.1)
+                sfx_manager.set_volume(new_vol)
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['sfx_volume'] = new_vol
+                    ProfileManager.save_profile(_user_profile)
+            # Handle ankh clicks
+            elif on_rect.collidepoint(mouse_pos):
+                _show_ankh = True
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['show_ankh'] = True
+                    ProfileManager.save_profile(_user_profile)
+            elif off_rect.collidepoint(mouse_pos):
+                _show_ankh = False
+                if _user_profile:
+                    if 'options' not in _user_profile:
+                        _user_profile['options'] = {}
+                    _user_profile['options']['show_ankh'] = False
+                    ProfileManager.save_profile(_user_profile)
             return None
 
     if _show_options: return None

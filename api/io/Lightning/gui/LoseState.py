@@ -4,7 +4,7 @@ import os
 
 from api.io.Lightning.manager.TextDesigner import CustomFont
 from api.io.Lightning.utils.ConfigFile import UI_PATH, fps
-from api.io.Lightning.manager.SoundReader import sfx_manager  # --- FIX: Import SFX ---
+from api.io.Lightning.manager.SoundReader import sfx_manager, music_manager  # --- FIX: Import music_manager ---
 
 # ----------------------------------- Package ----------------------------------- #
 
@@ -67,6 +67,9 @@ def lose_screen(screen, clock, background_surf=None):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
+            
+            # Handle music events for looping
+            music_manager.handle_event(event)
 
             if animation_complete and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = pygame.mouse.get_pos()

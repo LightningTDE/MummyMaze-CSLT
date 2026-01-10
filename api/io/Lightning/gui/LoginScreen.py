@@ -3,6 +3,7 @@ import os
 from api.io.Lightning.manager.UIFont import UIFont
 from api.io.Lightning.manager.ProfileManager import ProfileManager
 from api.io.Lightning.utils.ConfigFile import UI_PATH, fps
+from api.io.Lightning.manager.SoundReader import music_manager  # Import music_manager
 
 
 def login_screen(screen, clock):
@@ -45,6 +46,9 @@ def login_screen(screen, clock):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return None
+            
+            # Handle music events
+            music_manager.handle_event(event)
 
             # Handle mouse clicks
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:

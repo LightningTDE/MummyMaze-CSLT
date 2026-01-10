@@ -3,29 +3,36 @@ import os
 from api.io.Lightning.manager.UIFont import UIFont
 from api.io.Lightning.manager.StorageManager import StorageManager
 from api.io.Lightning.utils.ConfigFile import UI_PATH, fps
+from api.io.Lightning.manager.SoundReader import music_manager  # Import music_manager
 
 
-def format_time(milliseconds):
-    """Format time in milliseconds to readable format.
+def format_time(ms):
+    """Format milliseconds to 'Xm Ys' or 'Xh Ym Zs'.
     
     Args:
-        milliseconds (int): Time in milliseconds
+        ms (int): Time in milliseconds
         
     Returns:
-        str: Formatted time string (e.g., "15m 30s")
+        str: Formatted time string
     """
-    seconds = milliseconds // 1000
-    minutes = seconds // 60
-    seconds = seconds % 60
+    total_seconds = ms // 1000
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
     
-    if minutes > 0:
+    if hours > 0:
+        return f"{hours}h {minutes}m {seconds}s"
+    elif minutes > 0:
         return f"{minutes}m {seconds}s"
     else:
         return f"{seconds}s"
 
 
 def leaderboard_screen(screen, clock, storage_manager):
-    """Display leaderboard with pyramid tabs.
+    """Display leaderboard with all pyramids combined.
+    
+    Shows top 10 entries sorted by pyramid DESC (3→2→1), then time ASC.
+    No tabs - just a pyramid column.
     
     Args:
         screen: Pygame screen surface
@@ -39,20 +46,14 @@ def leaderboard_screen(screen, clock, storage_manager):
     menuback = pygame.image.load(os.path.join(UI_PATH, 'menuback.jpg'))
     
     # Use UIFont for all text rendering
-    title_font = UIFont(size=32, color=(255, 215, 0))
-    white_font = UIFont(size=24)
+    title_font = UIFont(size=32, color=(255, 215, 0))  # Gold
+    header_font = UIFont(size=24, color=(255, 100, 100))  # Red headers
+    white_font = UIFont(size=24, color=(255, 255, 255))
     
     # Medal colors
     COLOR_GOLD = (255, 215, 0)
     COLOR_SILVER = (192, 192, 192)
     COLOR_BRONZE = (205, 127, 50)
-    
-    # Get available pyramids (start with at least pyramid 1)
-    available_pyramids = storage_manager.get_available_pyramids()
-    if not available_pyramids:
-        available_pyramids = [1]  # Default to pyramid 1 if no data
-    
-    current_pyramid = available_pyramids[0] if available_pyramids else 1
     
     running = True
     while running:
@@ -63,6 +64,9 @@ def leaderboard_screen(screen, clock, storage_manager):
             if event.type == pygame.QUIT:
                 return None
             
+            # Handle music events for looping
+            music_manager.handle_event(event)
+            
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 clicked = True
         
@@ -72,73 +76,56 @@ def leaderboard_screen(screen, clock, storage_manager):
         # Draw title
         title_font.render_header("LEADERBOARD", screen, 320, 50)
         
-        # Draw pyramid tabs
-        for i in range(min(3, len(available_pyramids))):  # Max 3 tabs
-            pyramid = available_pyramids[i]
-            x = 160 + i * 160
-            y = 120
-            label = f"PYRAMID {pyramid}"
-            
-            if current_pyramid == pyramid:
-                tab_font = UIFont(size=28, color=(255, 215, 0))
-            else:
-                tab_font = UIFont(size=28, color=(150, 150, 150))
-            
-            if tab_font.draw_button(screen, label, x, y, mouse_pos, clicked):
-                current_pyramid = pyramid
+        # Get ALL leaderboard data (all pyramids)
+        all_data = storage_manager.get_all_leaderboard_data()
         
-        # Draw leaderboard header
-        header_y = 170
-        white_font.render_label('RANK', screen, 100, header_y)
-        white_font.render_label('NAME', screen, 280, header_y)
-        white_font.render_label('TIME', screen, 500, header_y)
+        # Sort by: Pyramid DESC (3→2→1), then Time ASC (fastest first)
+        all_data.sort(key=lambda x: (-x['pyramid'], x['total_time']))
         
-        # Draw divider line
-        pygame.draw.line(screen, (255, 255, 255), (60, header_y + 25), (580, header_y + 25), 1)
+        # Take top 10 only
+        top_10 = all_data[:10]
         
-        # Get leaderboard data for current pyramid
-        leaderboard = storage_manager.get_leaderboard(current_pyramid)
+        # Draw column headers
+        header_y = 100
+        header_font.render_label("RANK", screen, 120, header_y)
+        header_font.render_label("PYRAMID", screen, 240, header_y)
+        header_font.render_label("NAME", screen, 380, header_y)
+        header_font.render_label("TIME", screen, 540, header_y)
         
-        # Draw leaderboard entries
-        entry_y = header_y + 35
-        max_entries = 10
-        for i, entry in enumerate(leaderboard[:max_entries]):
-            rank = i + 1
-            username = entry.get("display_name", entry.get("username", "Unknown"))
-            total_time = entry.get("total_time", 0)
-            
-            # Determine color based on rank
-            if rank == 1:
-                color = COLOR_GOLD
-            elif rank == 2:
-                color = COLOR_SILVER
-            elif rank == 3:
-                color = COLOR_BRONZE
-            else:
-                color = (255, 255, 255)
-            
-            # Create UIFont with appropriate color
-            entry_font = UIFont(size=24, color=color)
-            
-            # Draw rank
-            entry_font.render_label(f'{rank}.', screen, 100, entry_y)
-            
-            # Draw username (truncate if too long)
-            display_name = username[:15] if len(username) > 15 else username
-            entry_font.render_label(display_name, screen, 280, entry_y)
-            
-            # Draw time
-            time_str = format_time(total_time)
-            entry_font.render_label(time_str, screen, 500, entry_y)
-            
-            entry_y += 25
-        
-        # If no entries, show message
-        if not leaderboard:
-            white_font.render_label('No scores yet!', screen, 320, 280)
+        # Draw entries
+        if not top_10:
+            white_font.render_label("NO RECORDS YET", screen, 320, 200)
+        else:
+            row_y = header_y + 40
+            for idx, entry in enumerate(top_10):
+                # Top 3 colors
+                if idx == 0:
+                    color = COLOR_GOLD
+                elif idx == 1:
+                    color = COLOR_SILVER
+                elif idx == 2:
+                    color = COLOR_BRONZE
+                else:
+                    color = (255, 255, 255)  # White
+                
+                row_font = UIFont(size=22, color=color)
+                
+                # Format data
+                rank_str = f"{idx + 1}."
+                pyramid_str = str(entry['pyramid'])
+                name_str = entry['name'][:12]  # Truncate long names
+                time_str = format_time(entry['total_time'])
+                
+                # Draw columns
+                row_font.render_label(rank_str, screen, 120, row_y)
+                row_font.render_label(pyramid_str, screen, 240, row_y)
+                row_font.render_label(name_str, screen, 380, row_y)
+                row_font.render_label(time_str, screen, 540, row_y)
+                
+                row_y += 35
         
         # Draw back button
-        if white_font.draw_button(screen, "BACK", 320, 440, mouse_pos, clicked):
+        if white_font.draw_button(screen, "BACK", 320, 450, mouse_pos, clicked):
             return "back"
         
         # Reset cursor if not hovering any button

@@ -466,3 +466,29 @@ class StorageManager:
         except Exception as e:
             print(f"Error getting pyramids: {e}")
             return []
+    
+    def get_all_leaderboard_data(self):
+        """Get leaderboard data for ALL pyramids.
+        
+        Returns:
+            list: List of all leaderboard entries from all pyramids
+        """
+        all_scores = []
+        
+        # Read all pyramid leaderboard files (1.json, 2.json, 3.json)
+        for pyramid in range(1, 4):  # Pyramids 1, 2, 3
+            leaderboard_path = os.path.join(LEADERBOARD_PATH, f"{pyramid}.json")
+            if os.path.exists(leaderboard_path):
+                try:
+                    with open(leaderboard_path, 'r') as f:
+                        pyramid_data = json.load(f)
+                        for entry in pyramid_data:
+                            all_scores.append({
+                                'pyramid': pyramid,
+                                'name': entry.get('display_name', entry.get('username', 'Unknown')),
+                                'total_time': entry.get('total_time', 0)
+                            })
+                except Exception as e:
+                    print(f"Error loading pyramid {pyramid} leaderboard: {e}")
+        
+        return all_scores

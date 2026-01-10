@@ -22,6 +22,7 @@ def init():
 
 def loading_screen(screen, clock):
     music_manager.initialize()
+    music_manager.start_menu_music()  # Start menu music HERE
     title = pygame.image.load(os.path.join(UI_PATH, 'title.jpg'))
     progress_bar = pygame.image.load(os.path.join(UI_PATH, 'titlebar.jpg')).convert_alpha()
     color = CustomFont(color=(255, 125, 17), hover_color=(255, 255, 255))
@@ -30,7 +31,7 @@ def loading_screen(screen, clock):
     play_rect = play.get_rect(topleft=(190, 430))
 
     progress = 0
-    speed = 0.8
+    speed = 0.4
     running = True
     while running:
         for event in pygame.event.get():

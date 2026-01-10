@@ -11,6 +11,7 @@ from api.io.Lightning.utils.ConfigFile import *
 from api.io.Lightning.gui.GameUI import *
 from api.io.Lightning.manager.StorageManager import StorageManager
 from api.io.Lightning.manager.SaveManager import SaveManager
+from api.io.Lightning.manager.SoundReader import music_manager  # Import music_manager
 
 if __name__ == '__main__':
     screen = init()
