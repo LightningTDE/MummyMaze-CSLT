@@ -109,7 +109,7 @@ Sau khi đăng nhập thành công, bạn có các lựa chọn:
   * **Màu đỏ:** Bạn đã đi vào thế bí (chết chắc dù đi hướng nào). Hãy dùng tính năng Undo hoặc Reset.
 
 * **Vật phẩm:**
-  * **Chìa khóa (Key):** Đóng vai trò như công tắc. Khi người chơi hoặc quái đi vào ô chìa khóa, các cổng/hàng rào tương ứng sẽ đóng hoặc mở.
+  * **Chìa khóa (Key):** Đóng vai trò như công tắc. Khi người chơi hoặc quái đi vào ô chìa khóa, hàng rào tương ứng sẽ đóng hoặc mở.
   * **Bẫy:** Trò chơi kết thúc ngay lập tức nếu người chơi dẫm trúng bẫy.
 
 ### 4. Các tính năng hỗ trợ (In-game Tools)
