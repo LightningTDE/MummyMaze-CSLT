@@ -35,7 +35,7 @@ Dự án được cấu hình để chạy trên môi trường Python. Vui lòn
 #### Bước 1: Tải mã nguồn
 Mở Terminal hoặc Command Prompt và chạy lệnh:
 ```bash
-git clone [https://gitlab.com/locn7345/finalist.git](https://gitlab.com/locn7345/finalist.git)
+git clone https://gitlab.com/locn7345/finalist.git
 cd finalist
 ```
 
