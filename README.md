@@ -124,4 +124,5 @@ Giao diện bên trái màn hình cung cấp bộ công cụ hỗ trợ người
 Nhấn vào nút **OPTIONS** để mở bảng cài đặt:
 * **MUSIC:** Tăng/Giảm âm lượng nhạc nền.
 * **SFX:** Tăng/Giảm âm lượng hiệu ứng âm thanh (tiếng bước chân, tiếng quái...).
+* **ANKH:** Bật/Tắt hiển thị tính năng Ankh của trò chơi
 * **QUIT TO MENU:** Thoát ra màn hình chính.
