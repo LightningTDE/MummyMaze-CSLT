@@ -1,7 +1,7 @@
 [project]
-name = "core"
-version = "0.1.0"
-description = "Add your description here"
+name = "Mummy Maze Ultimate"
+version = "1.0"
+description = "Mummy Maze là dự án tái hiện tựa game giải đố kinh điển của PopCap"
 requires-python = ">=3.14"
 dependencies = [
     "pygame-ce>=2.5.6",
