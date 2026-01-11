@@ -118,7 +118,7 @@ Giao diện bên trái màn hình cung cấp bộ công cụ hỗ trợ người
 * ↩️ **UNDO MOVE:** Đi sai một nước? Nhấn nút này để quay lại nước đi trước đó (Hối cờ).
 * 🔄 **RESET MAZE:** Chơi lại màn hiện tại từ đầu (nếu lỡ đi vào ngõ cụt).
 * 🗺️ **WORLD MAP:** Xem sơ đồ kim tự tháp để biết mình đang ở tầng nào.
-* 🤖 **SHOWING SOLUTION:** (Tính năng AI) Tự động giải màn chơi nếu bạn bị bí đường. Hệ thống sẽ hiển thị từng bước đi để thắng.
+* 🤖 **ABANDON HOPE:** (Tính năng AI) Tự động giải màn chơi nếu bạn bị bí đường. Hệ thống sẽ hiển thị từng bước đi để thắng.
 
 ### 5. Cài đặt (Options)
 Nhấn vào nút **OPTIONS** để mở bảng cài đặt:
