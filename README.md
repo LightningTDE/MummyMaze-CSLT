@@ -6,7 +6,8 @@
 
 <p style="text-align:center;">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-ff3f3f?logo=python&labelColor=1e1e1e" />
-  <img alt="Pygame" src="https://img.shields.io/badge/Pygame--CE-2.5.0-3eb489?logo=pygame&labelColor=1e1e1e" />
+  <img alt="Pygame" src="https://img.shields.io/badge/Pygame-2.6.0-3eb489?logo=pygame&labelColor=1e1e1e" />
+  <img alt="Pygame-ce" src="https://img.shields.io/badge/Pygame--CE-2.5.0-3eb489?logo=pygame&labelColor=1e1e1e" />
   <img alt="License" src="https://img.shields.io/badge/License-MIT-ff66aa?labelColor=1e1e1e" />
 </p>
 
