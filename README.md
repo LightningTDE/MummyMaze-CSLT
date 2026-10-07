@@ -14,7 +14,7 @@
 
 ## 📖 Giới thiệu
 
-* **Dự án:** Mummy Maze Ultimate
+* **Dự án:** Mummy Maze Ultimate (Mã dự án: `MummyMaze-CSLT`)
 * **Môn học:** Cơ sở lập trình cho Trí tuệ nhân tạo
 * **Nhóm thực hiện:** Nhóm 8 - 25TNT1
 
