@@ -14,7 +14,7 @@
 
 ## 📖 Giới thiệu
 
-* **Dự án:** Mummy Maze Ultimate (Mã dự án: `finalist`)
+* **Dự án:** Mummy Maze Ultimate
 * **Môn học:** Cơ sở lập trình cho Trí tuệ nhân tạo
 * **Nhóm thực hiện:** Nhóm 8 - 25TNT1
 
